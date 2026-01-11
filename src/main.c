@@ -36,12 +36,36 @@ struct wav_header
 
 const int sample_rate = 8000;
 
+/**
+ * \brief print the wav header
+ * \param header header to print
+ */
+void print_header(struct wav_header header){
+
+    printf("            riff: %c%c%c%c\n",header.riff[0], header.riff[1], header.riff[2], header.riff[3]);
+    printf("     file length: %d\n",header.file_length);
+    printf("            wave: %c%c%c%c\n",header.wave[0], header.wave[1], header.wave[2], header.wave[3]);
+    printf("             fmt: %c%c%c%c\n",header.fmt[0], header.fmt[1], header.fmt[2], header.fmt[3]);
+    printf("      chunk size: %d\n",header.chunk_size);
+    printf("      format tag: %d\n",header.format_tag);
+    printf(" num of channels: %d\n",header.num_of_chanels);
+    printf("     sample rate: %d\n",header.sample_rate);
+    printf("   bytes per sec: %d\n",header.bytes_per_sec);
+    printf("bytes per sample: %d\n",header.bytes_per_sample);
+    printf(" bits per sample: %d\n",header.bits_per_sample);
+    printf("            data: %c%c%c%c\n",header.data[0], header.data[1], header.data[2], header.data[3]);
+    printf("     data length: %d\n",header.data_length);
+    
+}
 
 
 /**
  * Main entry point for the program
  */
 int main(int argc, char* argv[]){
+
+    double length_of_note_s = 0.2f;
+    double length_of_pause_s = 0.1f;
 
     // make sure arguments are given
     if(argc < 2){
@@ -64,6 +88,11 @@ int main(int argc, char* argv[]){
         char_index++;
     }
     printf("\n");
+    printf("amount of chars: %d\n", char_index);
+
+    // two nibbles per character
+    long amount_of_chars = char_index * 2;
+    long amount_of_pauses = amount_of_chars;
 
     struct wav_header w_header;
 
@@ -80,18 +109,32 @@ int main(int argc, char* argv[]){
     w_header.bytes_per_sec = (w_header.sample_rate * w_header.bits_per_sample / 8) * w_header.num_of_chanels;
     w_header.bytes_per_sample = w_header.bits_per_sample / 8 * w_header.num_of_chanels;
 
-    uint8_t duration_in_sec = 1;
+    double duration_in_sec = ((amount_of_chars * length_of_note_s) + (amount_of_pauses * length_of_pause_s));
+    printf("duration in seconds: %f\n", duration_in_sec);
     uint16_t buffer_size = sample_rate * duration_in_sec;
 
     uint16_t buffer[buffer_size];
+    uint16_t buffer_index = 0;
 
-    for(int i = 0; i < buffer_size; i++){
-        buffer[i] = (uint16_t)((cos((2 * PI * 440 * i) / sample_rate) * 10000));
-        // printf("%d\n", buffer[i]);
+    for(int char_counter = 0; char_counter < amount_of_chars; char_counter++){
+        // note sound
+        for(int i = 0; i < (sample_rate * length_of_note_s); i++){
+            buffer[buffer_index] = (uint16_t)((cos((2 * PI * 440 * i) / sample_rate) * 10000));
+            buffer_index++;
+        }
+
+        // pause
+        for(int i = 0; i < (sample_rate * length_of_pause_s); i++){
+            buffer[buffer_index] = 0;
+            buffer_index++;
+        }
     }
+
 
     w_header.data_length = buffer_size * w_header.bytes_per_sample;
     w_header.file_length = w_header.data_length + sizeof(struct wav_header);
+
+    print_header(w_header);
 
     // Writing Wav File to Disk
     FILE *fp = fopen("test.wav", "w");
