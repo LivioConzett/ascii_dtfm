@@ -18,23 +18,44 @@
 // https://docs.fileformat.com/audio/wav/
 struct wav_header
 {
-    char riff[4];             /* "RIFF"                                  */
-    int32_t file_length;      /* file length in bytes                    */
-    char wave[4];             /* "WAVE"                                  */
-    char fmt[4];              /* "fmt "                                  */
-    int32_t chunk_size;       /* size of FMT chunk in bytes (usually 16) */
-    int16_t format_tag;       /* 1=PCM, 257=Mu-Law, 258=A-Law, 259=ADPCM */
-    int16_t num_of_chanels;   /* 1=mono, 2=stereo                        */
-    int32_t sample_rate;      /* Sampling rate in samples per second     */
-    int32_t bytes_per_sec;    /* bytes per second = srate*bytes_per_samp */
-    int16_t bytes_per_sample; /* 2=16-bit mono, 4=16-bit stereo          */
-    int16_t bits_per_sample;  /* Number of bits per sample               */
-    char data[4];             /* "data"                                  */
-    int32_t data_length;      /* data length in bytes (filelength - 44)  */
+    char riff[4];             /* "RIFF"                                        */
+    int32_t file_length;      /* file length in bytes                          */
+    char wave[4];             /* "WAVE"                                        */
+    char fmt[4];              /* "fmt "                                        */
+    int32_t chunk_size;       /* size of FMT chunk in bytes (usually 16)       */
+    int16_t format_tag;       /* 1=PCM, 257=Mu-Law, 258=A-Law, 259=ADPCM       */
+    int16_t num_of_chanels;   /* 1=mono, 2=stereo                              */
+    int32_t sample_rate;      /* Sampling rate in samples per second           */
+    int32_t bytes_per_sec;    /* bytes per second = sample_rate*bytes_per_samp */
+    int16_t bytes_per_sample; /* 2=16-bit mono, 4=16-bit stereo                */
+    int16_t bits_per_sample;  /* Number of bits per sample                     */
+    char data[4];             /* "data"                                        */
+    int32_t data_length;      /* data length in bytes (filelength - 44)        */
 };
 
 
 const int sample_rate = 8000;
+
+// the DTMF frequency pairs
+// https://en.wikipedia.org/wiki/DTMF_signaling
+const uint16_t frequencies[16][2] = {
+    {1336, 941}, // 0
+    {1209, 697}, // 1
+    {1336, 697}, // 2
+    {1477, 697}, // 3
+    {1209, 770}, // 4
+    {1336, 770}, // 5
+    {1477, 770}, // 6
+    {1209, 852}, // 7
+    {1336, 852}, // 8
+    {1477, 852}, // 9
+    {1633, 697}, // A
+    {1633, 770}, // B
+    {1633, 852}, // C
+    {1633, 941}, // D
+    {1209, 941}, // * in our case E
+    {1477, 941}  // # in our case F
+};
 
 /**
  * \brief print the wav header
@@ -59,13 +80,21 @@ void print_header(struct wav_header header){
 }
 
 
+uint16_t calculate_dtmf(uint8_t number, uint16_t index, uint16_t sample_rate){
+
+    return (uint16_t) ((cos((2 * PI * frequencies[number][0] * index) / sample_rate) + 
+                        cos((2 * PI * frequencies[number][1] * index) / sample_rate)) * 10000);
+    // return (uint16_t)(sin((2 * PI * 440 * index) / sample_rate) * 10000);
+}
+
+
 /**
  * Main entry point for the program
  */
 int main(int argc, char* argv[]){
 
-    double length_of_note_s = 0.2f;
-    double length_of_pause_s = 0.1f;
+    double length_of_note_s = 0.1f;
+    double length_of_pause_s = 0.05f;
 
     // make sure arguments are given
     if(argc < 2){
@@ -77,22 +106,17 @@ int main(int argc, char* argv[]){
     // index for the character in the argv
     uint32_t char_index = 0;
 
+    // get the length of the string
+
     // go through the string
     while(argv[1][char_index] != 0){
-        
-        // split the byte into the most significant and least significant nibble
-        uint8_t ms_nibble = (uint8_t) (argv[1][char_index] & 0b11110000) >> 4;
-        uint8_t ls_nibble = (uint8_t) argv[1][char_index] & 0b00001111;
-
-        printf("%x%x ", ms_nibble, ls_nibble);
         char_index++;
     }
-    printf("\n");
     printf("amount of chars: %d\n", char_index);
 
     // two nibbles per character
-    long amount_of_chars = char_index * 2;
-    long amount_of_pauses = amount_of_chars;
+    long amount_of_chars = char_index;
+    long amount_of_nibbles = amount_of_chars * 2;
 
     struct wav_header w_header;
 
@@ -109,7 +133,7 @@ int main(int argc, char* argv[]){
     w_header.bytes_per_sec = (w_header.sample_rate * w_header.bits_per_sample / 8) * w_header.num_of_chanels;
     w_header.bytes_per_sample = w_header.bits_per_sample / 8 * w_header.num_of_chanels;
 
-    double duration_in_sec = ((amount_of_chars * length_of_note_s) + (amount_of_pauses * length_of_pause_s));
+    double duration_in_sec = ((amount_of_nibbles * length_of_note_s) + (amount_of_nibbles * length_of_pause_s));
     printf("duration in seconds: %f\n", duration_in_sec);
     uint16_t buffer_size = sample_rate * duration_in_sec;
 
@@ -117,9 +141,16 @@ int main(int argc, char* argv[]){
     uint16_t buffer_index = 0;
 
     for(int char_counter = 0; char_counter < amount_of_chars; char_counter++){
+        
+        // split the byte into the most significant and least significant nibble
+        uint8_t ms_nibble = (uint8_t) (argv[1][char_counter] & 0b11110000) >> 4;
+        uint8_t ls_nibble = (uint8_t) argv[1][char_counter] & 0b00001111;
+
+        printf("%d",ms_nibble);
+
         // note sound
         for(int i = 0; i < (sample_rate * length_of_note_s); i++){
-            buffer[buffer_index] = (uint16_t)((cos((2 * PI * 440 * i) / sample_rate) * 10000));
+            buffer[buffer_index] = calculate_dtmf(ms_nibble, i, sample_rate);
             buffer_index++;
         }
 
@@ -128,7 +159,24 @@ int main(int argc, char* argv[]){
             buffer[buffer_index] = 0;
             buffer_index++;
         }
+
+        printf("%d",ls_nibble);
+
+        // note sound
+        for(int i = 0; i < (sample_rate * length_of_note_s); i++){
+            buffer[buffer_index] = calculate_dtmf(ls_nibble, i, sample_rate);
+            buffer_index++;
+        }
+
+        // pause
+        for(int i = 0; i < (sample_rate * length_of_pause_s); i++){
+            buffer[buffer_index] = 0;
+            buffer_index++;
+        }
+
     }
+
+    printf("\n");
 
 
     w_header.data_length = buffer_size * w_header.bytes_per_sample;
