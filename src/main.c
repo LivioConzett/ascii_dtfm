@@ -306,13 +306,16 @@ int main(int argc, char* argv[]){
     }
     
 
-    uint64_t buffer_size = (uint64_t) parameters.sample_rate * duration_in_sec;
+    uint64_t buffer_size = (uint64_t) (parameters.sample_rate * duration_in_sec);
 
     uint16_t buffer[buffer_size];
     uint64_t buffer_index = 0;
 
+    uint64_t note_length = (uint64_t) (parameters.sample_rate * parameters.note_length_s);
+    uint64_t pause_length = (uint64_t) (parameters.sample_rate * parameters.pause_length_s);
+
     // go through the characters and turn them into dtmf beeps
-    for(int char_counter = 0; char_counter < amount_of_chars; char_counter++){
+    for(uint64_t char_counter = 0; char_counter < amount_of_chars; char_counter++){
 
         uint8_t nibbles[2];
         // split the byte into the most significant and least significant nibble
@@ -320,16 +323,16 @@ int main(int argc, char* argv[]){
         nibbles[1] = (uint8_t) parameters.data[char_counter] & 0b00001111;
 
 
-        for(int nibble_index = 0; nibble_index < 2; nibble_index++){
+        for(uint8_t nibble_index = 0; nibble_index < 2; nibble_index++){
         
             // note sound
-            for(int i = 0; i < (parameters.sample_rate * parameters.note_length_s); i++){
+            for(uint64_t i = 0; i < note_length; i++){
                 buffer[buffer_index] = calculate_dtmf(nibbles[nibble_index], i, parameters.sample_rate);
                 buffer_index++;
             }
 
             // pause
-            for(int i = 0; i < (parameters.sample_rate * parameters.pause_length_s); i++){
+            for(uint64_t i = 0; i < pause_length; i++){
                 buffer[buffer_index] = 0;
                 buffer_index++;
             }
