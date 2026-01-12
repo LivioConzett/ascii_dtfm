@@ -12,7 +12,6 @@
 
 #define PI 3.14159265358979323846
 
-
 // Create Wav header Struct
 // https://docs.fileformat.com/audio/wav/
 struct wav_header
@@ -162,38 +161,30 @@ int main(int argc, char* argv[]){
     uint16_t buffer[buffer_size];
     uint16_t buffer_index = 0;
 
+    // go through the characters and turn them into dtmf beeps
     for(int char_counter = 0; char_counter < amount_of_chars; char_counter++){
         
+        uint8_t nibbles[2];
         // split the byte into the most significant and least significant nibble
-        uint8_t ms_nibble = (uint8_t) (argv[1][char_counter] & 0b11110000) >> 4;
-        uint8_t ls_nibble = (uint8_t) argv[1][char_counter] & 0b00001111;
+        nibbles[0] = (uint8_t) (argv[1][char_counter] & 0b11110000) >> 4;
+        nibbles[1] = (uint8_t) argv[1][char_counter] & 0b00001111;
 
-        printf("%d",ms_nibble);
 
-        // note sound
-        for(int i = 0; i < (sample_rate * length_of_note_s); i++){
-            buffer[buffer_index] = calculate_dtmf(ms_nibble, i, sample_rate);
-            buffer_index++;
-        }
+        for(int nibble_index = 0; nibble_index < 2; nibble_index++){
+        
+            printf("%d",nibbles[nibble_index]);
 
-        // pause
-        for(int i = 0; i < (sample_rate * length_of_pause_s); i++){
-            buffer[buffer_index] = 0;
-            buffer_index++;
-        }
+            // note sound
+            for(int i = 0; i < (sample_rate * length_of_note_s); i++){
+                buffer[buffer_index] = calculate_dtmf(nibbles[nibble_index], i, sample_rate);
+                buffer_index++;
+            }
 
-        printf("%d",ls_nibble);
-
-        // note sound
-        for(int i = 0; i < (sample_rate * length_of_note_s); i++){
-            buffer[buffer_index] = calculate_dtmf(ls_nibble, i, sample_rate);
-            buffer_index++;
-        }
-
-        // pause
-        for(int i = 0; i < (sample_rate * length_of_pause_s); i++){
-            buffer[buffer_index] = 0;
-            buffer_index++;
+            // pause
+            for(int i = 0; i < (sample_rate * length_of_pause_s); i++){
+                buffer[buffer_index] = 0;
+                buffer_index++;
+            }
         }
 
     }
