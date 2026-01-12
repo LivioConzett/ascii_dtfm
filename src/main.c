@@ -9,7 +9,6 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <math.h>
-#include <string.h>
 
 #define PI 3.14159265358979323846
 
@@ -79,17 +78,39 @@ void print_header(struct wav_header header){
     
 }
 
-
+/**
+ * \brief calculates the dtmf signal for a hex number at a certain point
+ * \param number number to convert
+ * \param index point in the signal to calculate for
+ * \param sample_rate the sample rate
+ * \return the signal at that point for a number
+ */
 uint16_t calculate_dtmf(uint8_t number, uint16_t index, uint16_t sample_rate){
 
     return (uint16_t) ((cos((2 * PI * frequencies[number][0] * index) / sample_rate) + 
                         cos((2 * PI * frequencies[number][1] * index) / sample_rate)) * 10000);
-    // return (uint16_t)(sin((2 * PI * 440 * index) / sample_rate) * 10000);
 }
 
 
 /**
- * Main entry point for the program
+ * \brief copy a string to a destination
+ * \param destination where to copy the string to
+ * \param string string to copy
+ * \param amount_of_bytes amount of bytes to copy
+ */
+void copy_string(char destination[], char string[], uint16_t amount_of_bytes){
+    for(int i = 0; i < amount_of_bytes; i++){
+        if(string[i] == 0){
+            printf("\nERROR Copying String '%s'!\nString is shorter than %d bytes!\n\n", string, amount_of_bytes);
+            exit(EXIT_FAILURE);
+        }
+        destination[i] = string[i];
+    }
+}
+
+
+/**
+ * \brief Main entry point for the program
  */
 int main(int argc, char* argv[]){
 
@@ -107,23 +128,24 @@ int main(int argc, char* argv[]){
     uint32_t char_index = 0;
 
     // get the length of the string
-
-    // go through the string
     while(argv[1][char_index] != 0){
         char_index++;
     }
     printf("amount of chars: %d\n", char_index);
 
+    uint16_t amount_of_chars = char_index;
     // two nibbles per character
-    long amount_of_chars = char_index;
-    long amount_of_nibbles = amount_of_chars * 2;
+    uint16_t amount_of_nibbles = amount_of_chars * 2;
 
+
+    // create the header
     struct wav_header w_header;
 
-    strncpy(w_header.riff, "RIFF", 5);
-    strncpy(w_header.wave, "WAVE", 5);
-    strncpy(w_header.fmt, "fmt ", 5);
-    strncpy(w_header.data, "data", 5);
+    copy_string(w_header.riff, "RIFF", 4);
+    copy_string(w_header.wave, "WAVE", 4);
+    copy_string(w_header.fmt, "fmt ", 4);
+    copy_string(w_header.data, "data", 4);
+
 
     w_header.chunk_size = 16;
     w_header.format_tag = 1;
